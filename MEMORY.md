@@ -1,6 +1,26 @@
 # Memory
 
+## 2026-05-18: Implemented Rust Disk I/O Benchmark Suite
+
+### Context
+Created a brand-new, robust, single-threaded disk I/O benchmarking tool rewritten in **Rust** to compare random reads versus sequential reads, detailing total throughput, IOPS, and average I/O latency.
+
+### Major Decisions and Changes
+1. **Rust Cargo Package Creation**: Initialized a standard binary Cargo package under the newly created `io_benchmark/` directory.
+2. **Direct/Uncached I/O Support**: Integrated OS-specific direct file operations to bypass the OS Page Cache:
+   - On **macOS**, uses `libc::fcntl` with the `F_NOCACHE` flag.
+   - On **Linux**, uses `libc::fcntl` with the `O_DIRECT` flag.
+   - Graceful runtime fallback and warning handling on unsupported operating systems.
+3. **Robust Metrics Calculation**:
+   - **Throughput**: Computes total bytes read divided by time elapsed (formatted dynamically as B/s, KiB/s, MiB/s, or GiB/s).
+   - **IOPS**: Tracks total completed read operations divided by duration in seconds.
+   - **Latency**: Measures elapsed time per read operation (formatted in s, ms, or µs).
+4. **Flexible CLI Configurations**: Implemented size and duration parsing allowing values like `--size 128M`, `--block-size 4K`, `--duration 10`, `--ops 50000`, `--nocache`, and `--keep`.
+5. **Comprehensive Unit Testing**: Added tests for all helper parsing and formatting functions inside `src/main.rs`.
+6. **Linting and Formatting**: Checked with `cargo clippy` and formatted cleanly via `cargo fmt` with no compiler warnings.
+
 ## 2026-05-18: Repository Converted to Bazel
+
 
 ### Context
 Converted the repository from language-specific ad-hoc setups to a unified, hermetic building system using **Bazel 9**.

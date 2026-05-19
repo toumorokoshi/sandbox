@@ -3,3 +3,6 @@
 # Bazel symlinks
 /bazel-*
 
+# Rust build artifacts
+target/
+**/target/
