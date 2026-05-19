@@ -1,5 +1,17 @@
 # Memory
 
+## 2026-05-18: Enhanced Benchmark Loop Symmetries & Published Experiments
+
+### Context
+Made the benchmarks fully symmetric by enabling both sequential and random reads to loop sequentially/randomly back to offset 0 and cycle until target operations or durations are satisfied, and published premium experiments to a README directory dashboard.
+
+### Major Decisions and Changes
+1. **Dynamic Sequential Read Cycling**: Added logic to `run_sequential_benchmark` that seeks back to the start of the file (`seek(0)`) whenever EOF is reached, allowing it to loop continuously under exact operation targets (`--ops`) or duration bounds (`--duration`).
+2. **Dynamic Balanced Mode**: Wrapped `duration` CLI argument inside `Option<Duration>`, dynamically defaulting both read benchmarks to execute exactly `num_blocks` operations (matching file size / block size) if no options are specified. This achieves perfectly comparable bytes read volumes and execution times under default conditions.
+3. **Natively Derived Bytesize Parsing**: Removed custom suffix-normalizing helper functions in favor of `bytesize::ByteSize`'s native direct string parsing, updating the CLI documentation and binary formats to standard `128MiB` / `4KiB` styles.
+4. **Comprehensive Readme Published**: Generated a detailed, premium `io_benchmark/README.md` containing absolute command-line usage details, CLI parameter references, and exhaustive performance analyses of our three SSD experiments (Cached vs Direct I/O, Small vs Large blocks).
+5. **Quality Verification**: Verified all unit tests and hermetic execution sandboxes pass successfully across both Cargo and Bazel test runners.
+
 ## 2026-05-18: Migrated CLI Parsing to Clap
 
 ### Context
