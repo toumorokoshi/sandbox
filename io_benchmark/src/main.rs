@@ -27,10 +27,10 @@ struct Config {
     #[arg(long = "block-size", default_value = "4K", value_parser = parse_size_with_bytesize, help = "Block size for reads (e.g. 4K, 64K, 1M)")]
     block_size: ByteSize,
 
-    #[arg(long = "duration", default_value = "5s", value_parser = humantime::parse_duration, help = "Duration to run random read test (e.g. 5s, 2m)")]
-    duration: Duration,
+    #[arg(long = "duration", value_parser = humantime::parse_duration, help = "Duration to run random read test (e.g. 5s, 2m)")]
+    duration: Option<Duration>,
 
-    #[arg(long = "ops", help = "Exact number of operations for random read test (overrides duration if set)")]
+    #[arg(long = "ops", help = "Exact number of operations for random read test")]
     ops: Option<u64>,
 
     #[arg(long = "nocache", help = "Bypass the OS Page Cache (using F_NOCACHE / O_DIRECT)")]
@@ -291,10 +291,16 @@ fn run_random_benchmark(
     let mut ios = 0u64;
     let start = Instant::now();
 
-    match config.ops {
-        Some(target_ops) => {
-            println!("Target I/O Operations: {}", target_ops);
-            for _ in 0..target_ops {
+    let (target_ops, target_duration) = match (config.ops, config.duration) {
+        (Some(ops), _) => (Some(ops), None),
+        (None, Some(dur)) => (None, Some(dur)),
+        (None, None) => (Some(num_blocks), None),
+    };
+
+    match (target_ops, target_duration) {
+        (Some(ops_count), _) => {
+            println!("Target I/O Operations: {} (Matches sequential block count)", ops_count);
+            for _ in 0..ops_count {
                 let block_index = rng.gen_range(0..num_blocks);
                 let offset = block_index * block_size_u64;
                 file.seek(SeekFrom::Start(offset))?;
@@ -303,9 +309,9 @@ fn run_random_benchmark(
                 ios += 1;
             }
         }
-        None => {
-            println!("Target Duration:      {}", format_duration(config.duration));
-            while start.elapsed() < config.duration {
+        (None, Some(dur)) => {
+            println!("Target Duration:      {}", format_duration(dur));
+            while start.elapsed() < dur {
                 let block_index = rng.gen_range(0..num_blocks);
                 let offset = block_index * block_size_u64;
                 file.seek(SeekFrom::Start(offset))?;
@@ -314,6 +320,7 @@ fn run_random_benchmark(
                 ios += 1;
             }
         }
+        _ => unreachable!(),
     }
 
     let elapsed = start.elapsed();
