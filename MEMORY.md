@@ -1,5 +1,15 @@
 # Memory
 
+## 2026-05-18: Migrated CLI Parsing to Clap
+
+### Context
+Replaced the manually hardcoded option parsing loop inside `io_benchmark` with the robust and modern `clap` struct-derive API.
+
+### Major Decisions and Changes
+1. **Added Clap Dependency**: Added `clap` with the `derive` feature in `Cargo.toml` and wired it through Bzlmod and `@crates//:clap` in `io_benchmark/BUILD.bazel`.
+2. **Derived CLI Struct**: Refactored `Config` using `#[derive(Parser)]` and `#[arg(...)]` decorators. This gives professional, self-documenting CLI helper menus and usage validation for free.
+3. **Custom Argument Value Parsers**: Developed custom validators (`parse_size_arg`, `parse_block_size_arg`, `parse_duration_arg`) integrating directly with `clap`'s type system to robustly translate formatted strings (e.g. `256M`, `4K`) into native Rust values.
+
 ## 2026-05-18: Integrated Rust Benchmark under Bazel Build
 
 ### Context

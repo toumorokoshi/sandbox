@@ -1,3 +1,4 @@
+use clap::Parser;
 use rand::Rng;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
@@ -12,34 +13,47 @@ const COLOR_CYAN: &str = "\x1b[36m";
 const COLOR_YELLOW: &str = "\x1b[33m";
 const COLOR_RED: &str = "\x1b[31m";
 
+#[derive(Parser, Debug)]
+#[command(name = "Disk I/O Benchmark")]
+#[command(about = "A premium console-based I/O benchmarking tool comparing sequential vs random reads.", long_about = None)]
 struct Config {
+    #[arg(long = "path", default_value = "./benchmark_test.bin", help = "Path to the test file")]
     file_path: PathBuf,
+
+    #[arg(long = "size", default_value = "128M", value_parser = parse_size_arg, help = "Size of the test file (e.g. 64M, 256M, 1G)")]
     file_size: u64,
+
+    #[arg(long = "block-size", default_value = "4K", value_parser = parse_block_size_arg, help = "Block size for reads (e.g. 4K, 64K, 1M)")]
     block_size: usize,
+
+    #[arg(long = "duration", default_value = "5", value_parser = parse_duration_arg, help = "Duration to run random read test in seconds")]
     duration: Duration,
+
+    #[arg(long = "ops", help = "Exact number of operations for random read test (overrides duration if set)")]
     ops: Option<u64>,
+
+    #[arg(long = "nocache", help = "Bypass the OS Page Cache (using F_NOCACHE / O_DIRECT)")]
     nocache: bool,
+
+    #[arg(long = "keep", help = "Keep the test file after benchmark completes")]
     keep_file: bool,
 }
 
-fn print_usage() {
-    println!(
-        "{}Disk I/O Benchmark (Rust Version){}\n",
-        COLOR_BOLD, COLOR_RESET
-    );
-    println!("Usage: io_benchmark [OPTIONS]\n");
-    println!("Options:");
-    println!("  --path <PATH>        Path to the test file (default: ./benchmark_test.bin)");
-    println!("  --size <SIZE>        Size of the test file, e.g. 64M, 256M, 1G (default: 128M)");
-    println!("  --block-size <SIZE>  Block size for reads, e.g. 4K, 64K, 1M (default: 4K)");
-    println!("  --duration <SECS>    Duration to run random read test in seconds (default: 5)");
-    println!(
-        "  --ops <COUNT>        Exact number of operations for random read test (ignores --duration if set)"
-    );
-    println!("  --nocache            Bypass the OS Page Cache (using F_NOCACHE / O_DIRECT)");
-    println!("  --keep               Keep the test file after benchmark completes");
-    println!("  --help, -h           Show this help message\n");
+fn parse_size_arg(s: &str) -> Result<u64, String> {
+    parse_size(s).map_err(|e| e.to_string())
 }
+
+fn parse_block_size_arg(s: &str) -> Result<usize, String> {
+    parse_size(s)
+        .map(|v| v as usize)
+        .map_err(|e| e.to_string())
+}
+
+fn parse_duration_arg(s: &str) -> Result<Duration, String> {
+    let secs: u64 = s.parse().map_err(|_| "Invalid duration format. Must be an integer number of seconds.".to_string())?;
+    Ok(Duration::from_secs(secs))
+}
+
 
 fn parse_size(s: &str) -> Result<u64, anyhow::Error> {
     let s = s.trim().to_uppercase();
@@ -155,83 +169,7 @@ fn disable_cache(_file: &File) -> Result<(), anyhow::Error> {
 }
 
 fn parse_args() -> Result<Config, anyhow::Error> {
-    let args: Vec<String> = std::env::args().collect();
-    let mut config = Config {
-        file_path: PathBuf::from("./benchmark_test.bin"),
-        file_size: 128 * 1024 * 1024, // 128 MB default
-        block_size: 4 * 1024,         // 4 KB default
-        duration: Duration::from_secs(5),
-        ops: None,
-        nocache: false,
-        keep_file: false,
-    };
-
-    let mut i = 1;
-    while i < args.len() {
-        match args[i].as_str() {
-            "-h" | "--help" => {
-                print_usage();
-                std::process::exit(0);
-            }
-            "--path" => {
-                if i + 1 < args.len() {
-                    config.file_path = PathBuf::from(&args[i + 1]);
-                    i += 2;
-                } else {
-                    return Err(anyhow::anyhow!("Missing value for --path"));
-                }
-            }
-            "--size" => {
-                if i + 1 < args.len() {
-                    config.file_size = parse_size(&args[i + 1])?;
-                    i += 2;
-                } else {
-                    return Err(anyhow::anyhow!("Missing value for --size"));
-                }
-            }
-            "--block-size" => {
-                if i + 1 < args.len() {
-                    config.block_size = parse_size(&args[i + 1])? as usize;
-                    i += 2;
-                } else {
-                    return Err(anyhow::anyhow!("Missing value for --block-size"));
-                }
-            }
-            "--duration" => {
-                if i + 1 < args.len() {
-                    let secs: u64 = args[i + 1]
-                        .parse()
-                        .map_err(|_| anyhow::anyhow!("Invalid duration"))?;
-                    config.duration = Duration::from_secs(secs);
-                    i += 2;
-                } else {
-                    return Err(anyhow::anyhow!("Missing value for --duration"));
-                }
-            }
-            "--ops" => {
-                if i + 1 < args.len() {
-                    let ops: u64 = args[i + 1]
-                        .parse()
-                        .map_err(|_| anyhow::anyhow!("Invalid ops count"))?;
-                    config.ops = Some(ops);
-                    i += 2;
-                } else {
-                    return Err(anyhow::anyhow!("Missing value for --ops"));
-                }
-            }
-            "--nocache" => {
-                config.nocache = true;
-                i += 1;
-            }
-            "--keep" => {
-                config.keep_file = true;
-                i += 1;
-            }
-            unknown => {
-                return Err(anyhow::anyhow!("Unknown option: {}", unknown));
-            }
-        }
-    }
+    let config = Config::parse();
 
     if config.block_size == 0 {
         return Err(anyhow::anyhow!("Block size cannot be zero"));
