@@ -9,7 +9,7 @@ class MyTestCase(unittest.TestCase):
         self.assertEqual(5 - 3, 2)
 
     def test_multiplication(self):
-        self.assertEqual(3 * 5, 12)
+        self.assertEqual(3 * 5, 15)
 
 # Define the main function to execute the tests
 def main():

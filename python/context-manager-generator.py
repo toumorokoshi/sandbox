@@ -31,7 +31,7 @@ class MyTestCase(unittest.TestCase):
     def test_foo(self):
         # sys.__module__ is just a roundabout way of emulating importing and
         # referencing variables from a different module.
-        self.assertEqual(sys.get_global_config("foo"), 4)
+        self.assertEqual(sys.get_global_config("foo"), self._mock_global_config["foo"])
 
 
 class MyTestCaseY(MyTestCase):

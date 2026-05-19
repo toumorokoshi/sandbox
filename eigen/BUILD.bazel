@@ -1,0 +1,25 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+
+cc_binary(
+    name = "main-affine-to-matrix",
+    srcs = ["main-affine-to-matrix.cpp"],
+    deps = [
+        "@eigen//:eigen",
+    ],
+)
+
+cc_binary(
+    name = "main-matrix",
+    srcs = ["main-matrix.cpp"],
+    deps = [
+        "@eigen//:eigen",
+    ],
+)
+
+cc_binary(
+    name = "main-vector",
+    srcs = ["main-vector.cpp"],
+    deps = [
+        "@eigen//:eigen",
+    ],
+)

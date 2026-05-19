@@ -1,0 +1,31 @@
+load("@rules_python//python:defs.bzl", "py_binary", "py_test")
+
+py_test(
+    name = "context-manager-generator",
+    srcs = ["context-manager-generator.py"],
+    main = "context-manager-generator.py",
+)
+
+py_test(
+    name = "unittest_example",
+    srcs = ["unittest_example.py"],
+    main = "unittest_example.py",
+)
+
+py_binary(
+    name = "pickle_dataclass",
+    srcs = ["pickle_dataclass.py"],
+    main = "pickle_dataclass.py",
+)
+
+py_binary(
+    name = "subprocess_test",
+    srcs = ["subprocess_test.py"],
+    main = "subprocess_test.py",
+)
+
+py_binary(
+    name = "test_stderr",
+    srcs = ["test_stderr.py"],
+    main = "test_stderr.py",
+)
