@@ -1,3 +1,4 @@
+use bytesize::ByteSize;
 use clap::Parser;
 use rand::Rng;
 use std::fs::{File, OpenOptions};
@@ -20,13 +21,13 @@ struct Config {
     #[arg(long = "path", default_value = "./benchmark_test.bin", help = "Path to the test file")]
     file_path: PathBuf,
 
-    #[arg(long = "size", default_value = "128M", value_parser = parse_size_arg, help = "Size of the test file (e.g. 64M, 256M, 1G)")]
-    file_size: u64,
+    #[arg(long = "size", default_value = "128M", value_parser = parse_size_with_bytesize, help = "Size of the test file (e.g. 64M, 256M, 1G)")]
+    file_size: ByteSize,
 
-    #[arg(long = "block-size", default_value = "4K", value_parser = parse_block_size_arg, help = "Block size for reads (e.g. 4K, 64K, 1M)")]
-    block_size: usize,
+    #[arg(long = "block-size", default_value = "4K", value_parser = parse_size_with_bytesize, help = "Block size for reads (e.g. 4K, 64K, 1M)")]
+    block_size: ByteSize,
 
-    #[arg(long = "duration", default_value = "5", value_parser = parse_duration_arg, help = "Duration to run random read test in seconds")]
+    #[arg(long = "duration", default_value = "5s", value_parser = humantime::parse_duration, help = "Duration to run random read test (e.g. 5s, 2m)")]
     duration: Duration,
 
     #[arg(long = "ops", help = "Exact number of operations for random read test (overrides duration if set)")]
@@ -39,92 +40,48 @@ struct Config {
     keep_file: bool,
 }
 
-fn parse_size_arg(s: &str) -> Result<u64, String> {
-    parse_size(s).map_err(|e| e.to_string())
-}
-
-fn parse_block_size_arg(s: &str) -> Result<usize, String> {
-    parse_size(s)
-        .map(|v| v as usize)
-        .map_err(|e| e.to_string())
-}
-
-fn parse_duration_arg(s: &str) -> Result<Duration, String> {
-    let secs: u64 = s.parse().map_err(|_| "Invalid duration format. Must be an integer number of seconds.".to_string())?;
-    Ok(Duration::from_secs(secs))
-}
-
-
-fn parse_size(s: &str) -> Result<u64, anyhow::Error> {
+fn parse_size_with_bytesize(s: &str) -> Result<ByteSize, String> {
     let s = s.trim().to_uppercase();
     if s.is_empty() {
-        return Err(anyhow::anyhow!("Empty size string"));
+        return Err("Empty size string".to_string());
     }
 
-    let mut num_str = s.as_str();
-    let mut multiplier: u64 = 1;
-
-    if s.ends_with('K') {
-        num_str = &s[..s.len() - 1];
-        multiplier = 1024;
-    } else if s.ends_with('M') {
-        num_str = &s[..s.len() - 1];
-        multiplier = 1024 * 1024;
-    } else if s.ends_with('G') {
-        num_str = &s[..s.len() - 1];
-        multiplier = 1024 * 1024 * 1024;
+    // Normalize all single-letter and standard KB/MB/GB suffixes to binary KiB/MiB/GiB
+    let normalized = if s.ends_with("KIB") || s.ends_with("MIB") || s.ends_with("GIB") || s.ends_with("TIB") {
+        s
     } else if s.ends_with("KB") {
-        num_str = &s[..s.len() - 2];
-        multiplier = 1024;
+        format!("{}IB", &s[..s.len() - 1]) // KB -> KIB
     } else if s.ends_with("MB") {
-        num_str = &s[..s.len() - 2];
-        multiplier = 1024 * 1024;
+        format!("{}IB", &s[..s.len() - 1]) // MB -> MIB
     } else if s.ends_with("GB") {
-        num_str = &s[..s.len() - 2];
-        multiplier = 1024 * 1024 * 1024;
-    }
+        format!("{}IB", &s[..s.len() - 1]) // GB -> GIB
+    } else if s.ends_with("TB") {
+        format!("{}IB", &s[..s.len() - 1]) // TB -> TIB
+    } else if s.ends_with('K') {
+        format!("{}IB", s) // K -> KIB
+    } else if s.ends_with('M') {
+        format!("{}IB", s) // M -> MIB
+    } else if s.ends_with('G') {
+        format!("{}IB", s) // G -> GIB
+    } else if s.ends_with('T') {
+        format!("{}IB", s) // T -> TIB
+    } else {
+        s
+    };
 
-    let val: u64 = num_str
-        .trim()
-        .parse()
-        .map_err(|_| anyhow::anyhow!("Invalid number: {}", num_str))?;
-    Ok(val * multiplier)
+    normalized.parse::<ByteSize>().map_err(|e| e.to_string())
 }
 
 fn format_size(bytes: u64) -> String {
-    if bytes >= 1024 * 1024 * 1024 {
-        format!("{:.2} GiB", bytes as f64 / (1024.0 * 1024.0 * 1024.0))
-    } else if bytes >= 1024 * 1024 {
-        format!("{:.2} MiB", bytes as f64 / (1024.0 * 1024.0))
-    } else if bytes >= 1024 {
-        format!("{:.2} KiB", bytes as f64 / 1024.0)
-    } else {
-        format!("{} B", bytes)
-    }
+    ByteSize::b(bytes).to_string_as(true)
 }
 
 fn format_throughput(bytes_per_sec: f64) -> String {
-    if bytes_per_sec >= 1024.0 * 1024.0 * 1024.0 {
-        format!("{:.2} GiB/s", bytes_per_sec / (1024.0 * 1024.0 * 1024.0))
-    } else if bytes_per_sec >= 1024.0 * 1024.0 {
-        format!("{:.2} MiB/s", bytes_per_sec / (1024.0 * 1024.0))
-    } else if bytes_per_sec >= 1024.0 {
-        format!("{:.2} KiB/s", bytes_per_sec / 1024.0)
-    } else {
-        format!("{:.2} B/s", bytes_per_sec)
-    }
+    format!("{}/s", ByteSize::b(bytes_per_sec as u64).to_string_as(true))
 }
 
 fn format_duration(d: Duration) -> String {
-    if d.as_secs() >= 60 {
-        format!("{:.2} min", d.as_secs_f64() / 60.0)
-    } else if d.as_secs() >= 1 {
-        format!("{:.2} s", d.as_secs_f64())
-    } else if d.as_millis() >= 1 {
-        format!("{:.2} ms", d.as_secs_f64() * 1000.0)
-    } else {
-        format!("{:.2} µs", d.as_secs_f64() * 1_000_000.0)
-    }
+    humantime::format_duration(d).to_string()
 }
 
 #[cfg(target_os = "macos")]
@@ -171,13 +128,13 @@ fn disable_cache(_file: &File) -> Result<(), anyhow::Error> {
 fn parse_args() -> Result<Config, anyhow::Error> {
     let config = Config::parse();
 
-    if config.block_size == 0 {
+    if config.block_size.as_u64() == 0 {
         return Err(anyhow::anyhow!("Block size cannot be zero"));
     }
-    if config.file_size == 0 {
+    if config.file_size.as_u64() == 0 {
         return Err(anyhow::anyhow!("File size cannot be zero"));
     }
-    if config.file_size < config.block_size as u64 {
+    if config.file_size.as_u64() < config.block_size.as_u64() {
         return Err(anyhow::anyhow!(
             "File size must be at least as large as the block size"
         ));
@@ -194,8 +151,8 @@ fn create_test_file(config: &Config) -> Result<(), anyhow::Error> {
     println!("Path: {}", config.file_path.display());
     println!(
         "Size: {} ({})",
-        format_size(config.file_size),
-        config.file_size
+        format_size(config.file_size.as_u64()),
+        config.file_size.as_u64()
     );
 
     let start = Instant::now();
@@ -213,7 +170,7 @@ fn create_test_file(config: &Config) -> Result<(), anyhow::Error> {
         *item = (j % 251) as u8;
     }
 
-    let mut remaining = config.file_size;
+    let mut remaining = config.file_size.as_u64();
     let mut total_written = 0u64;
 
     while remaining > 0 {
@@ -223,7 +180,7 @@ fn create_test_file(config: &Config) -> Result<(), anyhow::Error> {
         total_written += to_write as u64;
 
         // Print progress
-        let percent = (total_written as f64 / config.file_size as f64) * 100.0;
+        let percent = (total_written as f64 / config.file_size.as_u64() as f64) * 100.0;
         print!("\rWriting data: {:.1}% completed...", percent);
         let _ = std::io::stdout().flush();
     }
@@ -248,7 +205,7 @@ fn run_sequential_benchmark(config: &Config) -> Result<(u64, Duration, f64, f64)
         "\n{}[2/3] Running Sequential Reads Benchmark...{}{}",
         COLOR_BOLD, COLOR_CYAN, COLOR_RESET
     );
-    println!("Block size: {}", format_size(config.block_size as u64));
+    println!("Block size: {}", format_size(config.block_size.as_u64()));
 
     let mut file = File::open(&config.file_path)?;
     if config.nocache {
@@ -264,7 +221,7 @@ fn run_sequential_benchmark(config: &Config) -> Result<(u64, Duration, f64, f64)
         }
     }
 
-    let mut buffer = vec![0u8; config.block_size];
+    let mut buffer = vec![0u8; config.block_size.as_u64() as usize];
     let start = Instant::now();
     let mut bytes_read = 0u64;
     let mut ios = 0u64;
@@ -303,7 +260,7 @@ fn run_random_benchmark(
         "\n{}[3/3] Running Random Reads Benchmark...{}{}",
         COLOR_BOLD, COLOR_CYAN, COLOR_RESET
     );
-    println!("Block size: {}", format_size(config.block_size as u64));
+    println!("Block size: {}", format_size(config.block_size.as_u64()));
 
     let mut file = File::open(&config.file_path)?;
     if config.nocache {
@@ -319,15 +276,15 @@ fn run_random_benchmark(
         }
     }
 
-    let block_size_u64 = config.block_size as u64;
-    let num_blocks = config.file_size / block_size_u64;
+    let block_size_u64 = config.block_size.as_u64();
+    let num_blocks = config.file_size.as_u64() / block_size_u64;
     if num_blocks == 0 {
         return Err(anyhow::anyhow!(
             "File is too small for the selected block size"
         ));
     }
 
-    let mut buffer = vec![0u8; config.block_size];
+    let mut buffer = vec![0u8; config.block_size.as_u64() as usize];
     let mut rng = rand::thread_rng();
 
     let mut bytes_read = 0u64;
@@ -400,8 +357,8 @@ fn main() -> Result<(), anyhow::Error> {
     println!("============================================================");
     println!("Configuration:");
     println!("  Test File:     {}", config.file_path.display());
-    println!("  File Size:     {}", format_size(config.file_size));
-    println!("  Block Size:    {}", format_size(config.block_size as u64));
+    println!("  File Size:     {}", format_size(config.file_size.as_u64()));
+    println!("  Block Size:    {}", format_size(config.block_size.as_u64()));
     println!(
         "  Bypass Cache:  {}",
         if config.nocache { "Yes" } else { "No" }
@@ -500,39 +457,35 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_size() {
-        assert_eq!(parse_size("4K").unwrap(), 4096);
-        assert_eq!(parse_size("1M").unwrap(), 1024 * 1024);
-        assert_eq!(parse_size("2G").unwrap(), 2 * 1024 * 1024 * 1024);
-        assert_eq!(parse_size(" 128 MB ").unwrap(), 128 * 1024 * 1024);
-        assert!(parse_size("abc").is_err());
-        assert!(parse_size("").is_err());
+    fn test_parse_size_with_bytesize() {
+        assert_eq!(parse_size_with_bytesize("4K").unwrap().as_u64(), 4096);
+        assert_eq!(parse_size_with_bytesize("1M").unwrap().as_u64(), 1024 * 1024);
+        assert_eq!(parse_size_with_bytesize("2G").unwrap().as_u64(), 2 * 1024 * 1024 * 1024);
+        assert_eq!(parse_size_with_bytesize(" 128 MB ").unwrap().as_u64(), 128 * 1024 * 1024);
+        assert!(parse_size_with_bytesize("abc").is_err());
+        assert!(parse_size_with_bytesize("").is_err());
     }
 
     #[test]
     fn test_format_size() {
         assert_eq!(format_size(512), "512 B");
-        assert_eq!(format_size(1024), "1.00 KiB");
-        assert_eq!(format_size(1024 * 1024 * 5), "5.00 MiB");
-        assert_eq!(format_size(1024 * 1024 * 1024 * 3), "3.00 GiB");
+        assert_eq!(format_size(1024), "1.0 kiB");
+        assert_eq!(format_size(1024 * 1024 * 5), "5.0 MiB");
+        assert_eq!(format_size(1024 * 1024 * 1024 * 3), "3.0 GiB");
     }
 
     #[test]
     fn test_format_throughput() {
-        assert_eq!(format_throughput(500.0), "500.00 B/s");
-        assert_eq!(format_throughput(1024.0 * 2.5), "2.50 KiB/s");
-        assert_eq!(format_throughput(1024.0 * 1024.0 * 123.45), "123.45 MiB/s");
-        assert_eq!(
-            format_throughput(1024.0 * 1024.0 * 1024.0 * 1.5),
-            "1.50 GiB/s"
-        );
+        assert_eq!(format_throughput(500.0), "500 B/s");
+        assert_eq!(format_throughput(1024.0 * 2.5), "2.5 kiB/s");
+        assert_eq!(format_throughput(1024.0 * 1024.0 * 123.0), "123.0 MiB/s");
     }
 
     #[test]
     fn test_format_duration() {
-        assert_eq!(format_duration(Duration::from_secs(120)), "2.00 min");
-        assert_eq!(format_duration(Duration::from_secs(5)), "5.00 s");
-        assert_eq!(format_duration(Duration::from_millis(250)), "250.00 ms");
-        assert_eq!(format_duration(Duration::from_micros(15)), "15.00 µs");
+        assert_eq!(format_duration(Duration::from_secs(120)), "2m");
+        assert_eq!(format_duration(Duration::from_secs(5)), "5s");
+        assert_eq!(format_duration(Duration::from_millis(250)), "250ms");
+        assert_eq!(format_duration(Duration::from_micros(15)), "15us");
     }
 }
