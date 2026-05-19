@@ -1,14 +1,6 @@
 # Disk I/O Benchmark Suite
 
-A premium, high-performance console utility written in Rust to benchmark and compare sequential vs. random reads on storage media.
-
-## Features
-- **Direct I/O Support**: Bypass OS Page Caches natively (using `F_NOCACHE` on macOS and `O_DIRECT` on Linux) to measure raw hardware speed.
-- **Symmetric Balanced Mode**: Automatically targets matching data volumes and operations count between sequential and random runs to ensure direct comparability.
-- **Flexible CLI Input**: Parses standard IEC binary byte formatting (e.g. `128MiB`, `4KiB`) natively using standard type integration.
-- **Microsecond Precision**: Measures read operations and throughput with microsecond and nanosecond granularity.
-
----
+A utility written in Rust to benchmark and compare sequential vs. random reads on storage media.
 
 ## Usage
 
@@ -46,39 +38,39 @@ The following benchmarks were conducted on a macOS host machine with a solid-sta
 ### Experiment 1: Cached I/O (4 KiB Blocks)
 *Command: `bazel run //io_benchmark -- --size 128MiB --block-size 4KiB`*
 
-| Metric | Sequential Reads | Random Reads | Comparison |
-|---|---|---|---|
-| **Bytes Read** | 128.0 MiB | 128.0 MiB | Equal |
-| **Duration** | 21ms 328us 250ns | 122ms 915us 959ns | Sequential is 5.7x faster |
-| **Throughput** | 5.9 GiB/s | 1.0 GiB/s | - |
-| **IOPS** | 1536366.09 | 266588.65 | - |
-| **Avg Latency** | N/A | 3us 751ns | - |
+| Metric          | Sequential Reads | Random Reads      | Comparison                |
+| --------------- | ---------------- | ----------------- | ------------------------- |
+| **Bytes Read**  | 128.0 MiB        | 128.0 MiB         | Equal                     |
+| **Duration**    | 21ms 328us 250ns | 122ms 915us 959ns | Sequential is 5.7x faster |
+| **Throughput**  | 5.9 GiB/s        | 1.0 GiB/s         | -                         |
+| **IOPS**        | 1536366.09       | 266588.65         | -                         |
+| **Avg Latency** | N/A              | 3us 751ns         | -                         |
 
 ---
 
 ### Experiment 2: Direct I/O - Page Cache Bypassed (4 KiB Blocks)
 *Command: `bazel run //io_benchmark -- --size 128MiB --block-size 4KiB --nocache`*
 
-| Metric | Sequential Reads | Random Reads | Comparison |
-|---|---|---|---|
-| **Bytes Read** | 128.0 MiB | 128.0 MiB | Equal |
-| **Duration** | 24ms 104us 167ns | 70ms 635us 125ns | Sequential is 2.9x faster |
-| **Throughput** | 5.2 GiB/s | 1.8 GiB/s | - |
-| **IOPS** | 1359433.00 | 463905.17 | - |
-| **Avg Latency** | N/A | 2us 155ns | - |
+| Metric          | Sequential Reads | Random Reads     | Comparison                |
+| --------------- | ---------------- | ---------------- | ------------------------- |
+| **Bytes Read**  | 128.0 MiB        | 128.0 MiB        | Equal                     |
+| **Duration**    | 24ms 104us 167ns | 70ms 635us 125ns | Sequential is 2.9x faster |
+| **Throughput**  | 5.2 GiB/s        | 1.8 GiB/s        | -                         |
+| **IOPS**        | 1359433.00       | 463905.17        | -                         |
+| **Avg Latency** | N/A              | 2us 155ns        | -                         |
 
 ---
 
 ### Experiment 3: Large Blocks Direct I/O (1 MiB Blocks)
 *Command: `bazel run //io_benchmark -- --size 128MiB --block-size 1MiB --nocache`*
 
-| Metric | Sequential Reads | Random Reads | Comparison |
-|---|---|---|---|
-| **Bytes Read** | 128.0 MiB | 128.0 MiB | Equal |
-| **Duration** | 10ms 515us 250ns | 9ms 995us 292ns | 1:1 Parity |
-| **Throughput** | 11.9 GiB/s | 12.5 GiB/s | - |
-| **IOPS** | 12172.80 | 12806.03 | - |
-| **Avg Latency** | N/A | 78us 88ns | - |
+| Metric          | Sequential Reads | Random Reads    | Comparison |
+| --------------- | ---------------- | --------------- | ---------- |
+| **Bytes Read**  | 128.0 MiB        | 128.0 MiB       | Equal      |
+| **Duration**    | 10ms 515us 250ns | 9ms 995us 292ns | 1:1 Parity |
+| **Throughput**  | 11.9 GiB/s       | 12.5 GiB/s      | -          |
+| **IOPS**        | 12172.80         | 12806.03        | -          |
+| **Avg Latency** | N/A              | 78us 88ns       | -          |
 
 ---
 
