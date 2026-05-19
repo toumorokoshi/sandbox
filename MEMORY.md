@@ -1,5 +1,16 @@
 # Memory
 
+## 2026-05-19: Added Parquet vs Lance Format Benchmark and Cargo Workspace
+
+### Context
+Created a benchmark evaluating read throughput of Parquet vs Lance over varying column payload sizes (1 KB to 10 MB). Integrated the new crate under the unified Bazel build.
+
+### Major Decisions and Changes
+1. **Format Benchmark Crate**: Initialized `format_benchmark` utilizing `parquet`, `lance`, and `arrow` to measure variable-size column reads and outputs results in MB/s.
+2. **Cargo Workspace Root**: Defined a root `Cargo.toml` workspace unifying both `io_benchmark` and `format_benchmark`.
+3. **Bzlmod crate_universe Integration**: Refactored `MODULE.bazel` to generate the dependency graph from the single root `Cargo.lock` and member manifests, streamlining dependency sharing across Rust binaries.
+4. **Bazel Targetization**: Created `format_benchmark/BUILD.bazel` `rust_binary` to build the benchmark consistently within the hermetic sandbox.
+
 ## 2026-05-18: Enhanced Benchmark Loop Symmetries & Published Experiments
 
 ### Context

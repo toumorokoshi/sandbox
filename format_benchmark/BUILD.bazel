@@ -1,0 +1,19 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary")
+
+rust_binary(
+    name = "format_benchmark",
+    srcs = ["src/main.rs"],
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:arrow",
+        "@crates//:bytesize",
+        "@crates//:clap",
+        "@crates//:futures",
+        "@crates//:humantime",
+        "@crates//:lance",
+        "@crates//:parquet",
+        "@crates//:rand",
+        "@crates//:tokio",
+    ],
+    visibility = ["//visibility:public"],
+)
