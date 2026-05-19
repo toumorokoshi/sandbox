@@ -18,13 +18,25 @@ const COLOR_RED: &str = "\x1b[31m";
 #[command(name = "Disk I/O Benchmark")]
 #[command(about = "A premium console-based I/O benchmarking tool comparing sequential vs random reads.", long_about = None)]
 struct Config {
-    #[arg(long = "path", default_value = "./benchmark_test.bin", help = "Path to the test file")]
+    #[arg(
+        long = "path",
+        default_value = "./benchmark_test.bin",
+        help = "Path to the test file"
+    )]
     file_path: PathBuf,
 
-    #[arg(long = "size", default_value = "128M", value_parser = parse_size_with_bytesize, help = "Size of the test file (e.g. 64M, 256M, 1G)")]
+    #[arg(
+        long = "size",
+        default_value = "128MiB",
+        help = "Size of the test file (e.g. 64MiB, 256MiB, 1GiB)"
+    )]
     file_size: ByteSize,
 
-    #[arg(long = "block-size", default_value = "4K", value_parser = parse_size_with_bytesize, help = "Block size for reads (e.g. 4K, 64K, 1M)")]
+    #[arg(
+        long = "block-size",
+        default_value = "4KiB",
+        help = "Block size for reads (e.g. 4KiB, 64KiB, 1MiB)"
+    )]
     block_size: ByteSize,
 
     #[arg(long = "duration", value_parser = humantime::parse_duration, help = "Duration to run random read test (e.g. 5s, 2m)")]
@@ -33,43 +45,14 @@ struct Config {
     #[arg(long = "ops", help = "Exact number of operations for random read test")]
     ops: Option<u64>,
 
-    #[arg(long = "nocache", help = "Bypass the OS Page Cache (using F_NOCACHE / O_DIRECT)")]
+    #[arg(
+        long = "nocache",
+        help = "Bypass the OS Page Cache (using F_NOCACHE / O_DIRECT)"
+    )]
     nocache: bool,
 
     #[arg(long = "keep", help = "Keep the test file after benchmark completes")]
     keep_file: bool,
-}
-
-fn parse_size_with_bytesize(s: &str) -> Result<ByteSize, String> {
-    let s = s.trim().to_uppercase();
-    if s.is_empty() {
-        return Err("Empty size string".to_string());
-    }
-
-    // Normalize all single-letter and standard KB/MB/GB suffixes to binary KiB/MiB/GiB
-    let normalized = if s.ends_with("KIB") || s.ends_with("MIB") || s.ends_with("GIB") || s.ends_with("TIB") {
-        s
-    } else if s.ends_with("KB") {
-        format!("{}IB", &s[..s.len() - 1]) // KB -> KIB
-    } else if s.ends_with("MB") {
-        format!("{}IB", &s[..s.len() - 1]) // MB -> MIB
-    } else if s.ends_with("GB") {
-        format!("{}IB", &s[..s.len() - 1]) // GB -> GIB
-    } else if s.ends_with("TB") {
-        format!("{}IB", &s[..s.len() - 1]) // TB -> TIB
-    } else if s.ends_with('K') {
-        format!("{}IB", s) // K -> KIB
-    } else if s.ends_with('M') {
-        format!("{}IB", s) // M -> MIB
-    } else if s.ends_with('G') {
-        format!("{}IB", s) // G -> GIB
-    } else if s.ends_with('T') {
-        format!("{}IB", s) // T -> TIB
-    } else {
-        s
-    };
-
-    normalized.parse::<ByteSize>().map_err(|e| e.to_string())
 }
 
 fn format_size(bytes: u64) -> String {
@@ -299,7 +282,10 @@ fn run_random_benchmark(
 
     match (target_ops, target_duration) {
         (Some(ops_count), _) => {
-            println!("Target I/O Operations: {} (Matches sequential block count)", ops_count);
+            println!(
+                "Target I/O Operations: {} (Matches sequential block count)",
+                ops_count
+            );
             for _ in 0..ops_count {
                 let block_index = rng.gen_range(0..num_blocks);
                 let offset = block_index * block_size_u64;
@@ -364,8 +350,14 @@ fn main() -> Result<(), anyhow::Error> {
     println!("============================================================");
     println!("Configuration:");
     println!("  Test File:     {}", config.file_path.display());
-    println!("  File Size:     {}", format_size(config.file_size.as_u64()));
-    println!("  Block Size:    {}", format_size(config.block_size.as_u64()));
+    println!(
+        "  File Size:     {}",
+        format_size(config.file_size.as_u64())
+    );
+    println!(
+        "  Block Size:    {}",
+        format_size(config.block_size.as_u64())
+    );
     println!(
         "  Bypass Cache:  {}",
         if config.nocache { "Yes" } else { "No" }
@@ -464,13 +456,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_size_with_bytesize() {
-        assert_eq!(parse_size_with_bytesize("4K").unwrap().as_u64(), 4096);
-        assert_eq!(parse_size_with_bytesize("1M").unwrap().as_u64(), 1024 * 1024);
-        assert_eq!(parse_size_with_bytesize("2G").unwrap().as_u64(), 2 * 1024 * 1024 * 1024);
-        assert_eq!(parse_size_with_bytesize(" 128 MB ").unwrap().as_u64(), 128 * 1024 * 1024);
-        assert!(parse_size_with_bytesize("abc").is_err());
-        assert!(parse_size_with_bytesize("").is_err());
+    fn test_parse_size() {
+        assert_eq!("4kiB".parse::<ByteSize>().unwrap().as_u64(), 4096);
+        assert_eq!("1MiB".parse::<ByteSize>().unwrap().as_u64(), 1024 * 1024);
+        assert_eq!(
+            "2GiB".parse::<ByteSize>().unwrap().as_u64(),
+            2 * 1024 * 1024 * 1024
+        );
+        assert_eq!(
+            "128MB".parse::<ByteSize>().unwrap().as_u64(),
+            128 * 1000 * 1000
+        );
+        assert!("abc".parse::<ByteSize>().is_err());
+        assert!("".parse::<ByteSize>().is_err());
     }
 
     #[test]
