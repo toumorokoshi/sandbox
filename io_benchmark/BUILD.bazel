@@ -1,0 +1,17 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_test")
+
+rust_binary(
+    name = "io_benchmark",
+    srcs = ["src/main.rs"],
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:libc",
+        "@crates//:rand",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+rust_test(
+    name = "io_benchmark_test",
+    crate = ":io_benchmark",
+)

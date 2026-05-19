@@ -1,5 +1,19 @@
 # Memory
 
+## 2026-05-18: Integrated Rust Benchmark under Bazel Build
+
+### Context
+Converted the `io_benchmark` Rust project build to **Bazel 9.1.0** to ensure the entire repository (C++, Go, Python, and Rust) builds and runs under a unified hermetic system.
+
+### Major Decisions and Changes
+1. **rules_rust Integration**: Added `rules_rust` (version `0.70.0` for full Bazel 9 compatibility) to `MODULE.bazel`.
+2. **Hermetic Rust Toolchain**: Configured `rust.toolchain` using standard version `1.85.0` to correctly support Rust's 2024 edition compilation.
+3. **Crate Universe Cargo Lock Ingestion**: Configured `crate.from_cargo` to read direct/transitive dependencies (`libc`, `rand`, `anyhow`) directly from `io_benchmark/Cargo.toml` and `io_benchmark/Cargo.lock`, mapping them hermetically to `@crates//:`.
+4. **Targetized Build files**: Created `io_benchmark/BUILD.bazel` with:
+   - `rust_binary` for `io_benchmark` tool.
+   - `rust_test` for `io_benchmark_test` which runs all inline unit tests hermetically inside Bazel's sandbox.
+5. **Sandbox Compliance Verified**: Executed `bazel test` and `bazel run` to guarantee that C++ / Go / Python / Rust test targets pass cleanly across the entire workspace.
+
 ## 2026-05-18: Implemented Rust Disk I/O Benchmark Suite
 
 ### Context
