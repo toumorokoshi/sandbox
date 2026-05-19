@@ -1,7 +1,7 @@
 load("@rules_rust//rust:defs.bzl", "rust_binary")
 
 rust_binary(
-    name = "format_benchmark",
+    name = "parquet_vs_lance_benchmark",
     srcs = ["src/main.rs"],
     deps = [
         "@crates//:anyhow",

@@ -2144,22 +2144,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "format_benchmark"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "arrow 54.2.1",
- "bytesize",
- "clap",
- "futures",
- "humantime",
- "lance",
- "parquet",
- "rand 0.8.6",
- "tokio",
-]
-
-[[package]]
 name = "fs4"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3765,6 +3749,22 @@ dependencies = [
  "twox-hash 1.6.3",
  "zstd",
  "zstd-sys",
+]
+
+[[package]]
+name = "parquet_vs_lance_benchmark"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "arrow 54.2.1",
+ "bytesize",
+ "clap",
+ "futures",
+ "humantime",
+ "lance",
+ "parquet",
+ "rand 0.8.6",
+ "tokio",
 ]
 
 [[package]]

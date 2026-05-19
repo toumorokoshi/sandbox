@@ -1,5 +1,5 @@
 [package]
-name = "format_benchmark"
+name = "parquet_vs_lance_benchmark"
 version = "0.1.0"
 edition = "2021"
 

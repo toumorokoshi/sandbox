@@ -7,4 +7,4 @@ The following features or tasks are identified for future work:
 - **Buildifier/Linter integration**: Integrating a Bazel code formatter (like `buildifier`) into local pre-commit hooks or just lint scripts when it becomes available.
 - **Concurrent/Multithreaded Benchmarking**: The current Rust disk benchmark is single-threaded. Adding multi-threaded parallel read support would enable testing disk performance under high queue depth and concurrency conditions.
 
-- **Format Write Benchmark**: The current `format_benchmark` measures read throughput across column sizes. Evaluating write throughput (especially for large datasets) would provide a complete analysis of the format capabilities.
+- **Format Write Benchmark**: The current `parquet_vs_lance_benchmark` measures read throughput across column sizes. Evaluating write throughput (especially for large datasets) would provide a complete analysis of the format capabilities.

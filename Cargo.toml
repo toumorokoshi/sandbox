@@ -1,6 +1,6 @@
 [workspace]
 members = [
     "io_benchmark",
-    "format_benchmark"
+    "parquet_vs_lance_benchmark"
 ]
 resolver = "2"
