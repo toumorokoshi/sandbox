@@ -204,18 +204,64 @@ fn run_sequential_benchmark(config: &Config) -> Result<(u64, Duration, f64, f64)
         }
     }
 
+    let block_size_u64 = config.block_size.as_u64();
+    let num_blocks = config.file_size.as_u64() / block_size_u64;
+    if num_blocks == 0 {
+        return Err(anyhow::anyhow!(
+            "File is too small for the selected block size"
+        ));
+    }
+
     let mut buffer = vec![0u8; config.block_size.as_u64() as usize];
     let start = Instant::now();
     let mut bytes_read = 0u64;
     let mut ios = 0u64;
 
-    loop {
-        let n = file.read(&mut buffer)?;
-        if n == 0 {
-            break;
+    let (target_ops, target_duration) = match (config.ops, config.duration) {
+        (Some(ops), _) => (Some(ops), None),
+        (None, Some(dur)) => (None, Some(dur)),
+        (None, None) => (Some(num_blocks), None),
+    };
+
+    match (target_ops, target_duration) {
+        (Some(ops_count), _) => {
+            println!(
+                "Target I/O Operations: {} (Matches sequential block count)",
+                ops_count
+            );
+            for _ in 0..ops_count {
+                let n = file.read(&mut buffer)?;
+                if n == 0 {
+                    file.seek(SeekFrom::Start(0))?;
+                    let n2 = file.read(&mut buffer)?;
+                    if n2 == 0 {
+                        break;
+                    }
+                    bytes_read += n2 as u64;
+                } else {
+                    bytes_read += n as u64;
+                }
+                ios += 1;
+            }
         }
-        bytes_read += n as u64;
-        ios += 1;
+        (None, Some(dur)) => {
+            println!("Target Duration:      {}", format_duration(dur));
+            while start.elapsed() < dur {
+                let n = file.read(&mut buffer)?;
+                if n == 0 {
+                    file.seek(SeekFrom::Start(0))?;
+                    let n2 = file.read(&mut buffer)?;
+                    if n2 == 0 {
+                        break;
+                    }
+                    bytes_read += n2 as u64;
+                } else {
+                    bytes_read += n as u64;
+                }
+                ios += 1;
+            }
+        }
+        _ => unreachable!(),
     }
 
     let elapsed = start.elapsed();
@@ -223,6 +269,7 @@ fn run_sequential_benchmark(config: &Config) -> Result<(u64, Duration, f64, f64)
     let throughput = bytes_read as f64 / seconds;
     let iops = ios as f64 / seconds;
 
+    println!("Total Operations: {}", ios);
     println!("Total Bytes Read: {}", format_size(bytes_read));
     println!("Elapsed Time:     {}", format_duration(elapsed));
     println!(
