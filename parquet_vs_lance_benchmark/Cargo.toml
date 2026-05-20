@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-arrow = "54.2.0"
-parquet = "54.2.0"
+arrow = "53.4.1"
+parquet = "53.4.1"
 lance = "0.22.0"
 tokio = { version = "1.0", features = ["full"] }
 rand = "0.8"

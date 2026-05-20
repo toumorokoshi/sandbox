@@ -1,5 +1,18 @@
 # Memory
 
+## 2026-05-20: Resolved Bazel Build Failures for Parquet vs Lance Benchmark
+
+### Context
+Fixed compilation failures when building `//parquet_vs_lance_benchmark:parquet_vs_lance_benchmark` through Bazel. These failures were caused by: (1) `let_chains` compilation error in the `comfy-table` dependency under the older toolchain, (2) version mismatches between the direct `arrow` dependency and `lance`'s transitive `arrow` version, and (3) missing `protoc` compiler inside Bazel sandbox for the `lance-index` build script.
+
+### Major Decisions and Changes
+1. **Toolchain Upgrade**: Updated the Rust toolchain versions inside `MODULE.bazel` from `1.85.0` to `1.93.1`. This supports stable `let_chains` which are used inside `comfy-table v7.2.2`.
+2. **Arrow & Parquet Version Alignment**: Downgraded direct `arrow` and `parquet` dependencies inside `parquet_vs_lance_benchmark/Cargo.toml` from `54.2.0` to `53.4.1` to align with the exact versions expected by `lance 0.22.0`, resolving a `RecordBatchReader` trait mismatch.
+3. **Bazel Environment Configuration**:
+   - Created `.bazelrc` to pass `PATH` (including `/opt/homebrew/bin`) and the `PROTOC` variable into the Bazel action environment, allowing the `lance-index` build script to locate `protoc` successfully on macOS.
+   - Created `.bazelignore` to ignore `.venv` and `target` to optimize Bazel query traversals.
+4. **Code Warnings Cleanups**: Resolved Rust compiler/Clippy warnings in the benchmark source code.
+
 ## 2026-05-19: Added Parquet vs Lance Format Benchmark and Cargo Workspace
 
 ### Context

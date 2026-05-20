@@ -1,5 +1,5 @@
 use anyhow::Result;
-use arrow::array::{BinaryArray, Int64Array, RecordBatch};
+use arrow::array::{Int64Array, RecordBatch};
 use arrow::datatypes::{DataType, Field, Schema};
 use futures::stream::StreamExt;
 use lance::dataset::{Dataset, WriteParams};
@@ -53,9 +53,9 @@ async fn main() -> Result<()> {
         let start = Instant::now();
         let p_file = File::open(&parquet_path)?;
         let builder = ParquetRecordBatchReaderBuilder::try_new(p_file)?;
-        let mut reader = builder.build()?;
+        let reader = builder.build()?;
         let mut p_rows = 0;
-        while let Some(rb) = reader.next() {
+        for rb in reader {
             let rb = rb?;
             p_rows += rb.num_rows();
         }
@@ -65,7 +65,7 @@ async fn main() -> Result<()> {
         // Read Lance
         let start = Instant::now();
         let dataset = Dataset::open(&lance_path).await?;
-        let mut scanner = dataset.scan();
+        let scanner = dataset.scan();
         let mut stream = scanner.try_into_stream().await?;
         let mut l_rows = 0;
         while let Some(rb) = stream.next().await {
