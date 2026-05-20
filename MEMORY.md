@@ -1,5 +1,15 @@
 # Memory
 
+## 2026-05-20: Refactored Parquet vs Lance Benchmark Read Logic
+
+### Context
+Refactored the Parquet and Lance read implementations from inline blocks inside the main loop into separate, modular functions (`read_parquet` and `read_lance`).
+
+### Major Decisions and Changes
+1. **Created ReadMetrics Struct**: Introduced a shared metrics container `ReadMetrics` to pass read duration, throughput (MB/s), and count of rows read back to the main loop.
+2. **Refactored Read Functions**: Moved the format-specific reading and stream traversal logic into helper functions `read_parquet` and `read_lance`.
+3. **Suppressed Dead Code Warnings**: Applied `#[allow(dead_code)]` to the struct to prevent unused field warnings for fields intended for downstream metrics tracking.
+
 ## 2026-05-20: Resolved Bazel Build Failures for Parquet vs Lance Benchmark
 
 ### Context

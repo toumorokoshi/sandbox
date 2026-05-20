@@ -10,6 +10,51 @@ use std::fs::File;
 use std::sync::Arc;
 use std::time::Instant;
 
+#[allow(dead_code)]
+struct ReadMetrics {
+    duration: std::time::Duration,
+    throughput_mb_s: f64,
+    rows_read: usize,
+}
+
+fn read_parquet(parquet_path: &str, total_data_size: usize) -> Result<ReadMetrics> {
+    let start = Instant::now();
+    let p_file = File::open(parquet_path)?;
+    let builder = ParquetRecordBatchReaderBuilder::try_new(p_file)?;
+    let reader = builder.build()?;
+    let mut p_rows = 0;
+    for rb in reader {
+        let rb = rb?;
+        p_rows += rb.num_rows();
+    }
+    let duration = start.elapsed();
+    let throughput_mb_s = (total_data_size as f64 / 1024.0 / 1024.0) / duration.as_secs_f64();
+    Ok(ReadMetrics {
+        duration,
+        throughput_mb_s,
+        rows_read: p_rows,
+    })
+}
+
+async fn read_lance(lance_path: &str, total_data_size: usize) -> Result<ReadMetrics> {
+    let start = Instant::now();
+    let dataset = Dataset::open(lance_path).await?;
+    let scanner = dataset.scan();
+    let mut stream = scanner.try_into_stream().await?;
+    let mut l_rows = 0;
+    while let Some(rb) = stream.next().await {
+        let rb = rb?;
+        l_rows += rb.num_rows();
+    }
+    let duration = start.elapsed();
+    let throughput_mb_s = (total_data_size as f64 / 1024.0 / 1024.0) / duration.as_secs_f64();
+    Ok(ReadMetrics {
+        duration,
+        throughput_mb_s,
+        rows_read: l_rows,
+    })
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     println!("Starting format benchmark (Parquet vs Lance)");
@@ -50,38 +95,18 @@ async fn main() -> Result<()> {
         let _ = Dataset::write(reader, &lance_path, Some(WriteParams::default())).await?;
 
         // Read Parquet
-        let start = Instant::now();
-        let p_file = File::open(&parquet_path)?;
-        let builder = ParquetRecordBatchReaderBuilder::try_new(p_file)?;
-        let reader = builder.build()?;
-        let mut p_rows = 0;
-        for rb in reader {
-            let rb = rb?;
-            p_rows += rb.num_rows();
-        }
-        let p_duration = start.elapsed();
-        let p_throughput = (total_data_size as f64 / 1024.0 / 1024.0) / p_duration.as_secs_f64();
+        let parquet_metrics = read_parquet(&parquet_path, total_data_size)?;
 
         // Read Lance
-        let start = Instant::now();
-        let dataset = Dataset::open(&lance_path).await?;
-        let scanner = dataset.scan();
-        let mut stream = scanner.try_into_stream().await?;
-        let mut l_rows = 0;
-        while let Some(rb) = stream.next().await {
-            let rb = rb?;
-            l_rows += rb.num_rows();
-        }
-        let l_duration = start.elapsed();
-        let l_throughput = (total_data_size as f64 / 1024.0 / 1024.0) / l_duration.as_secs_f64();
+        let lance_metrics = read_lance(&lance_path, total_data_size).await?;
 
-        assert_eq!(p_rows, rows);
-        assert_eq!(l_rows, rows);
+        assert_eq!(parquet_metrics.rows_read, rows);
+        assert_eq!(lance_metrics.rows_read, rows);
 
         let size_str = bytesize::ByteSize::b(size as u64).to_string();
         println!(
             "{:<15} | {:<20.2} | {:<20.2}",
-            size_str, p_throughput, l_throughput
+            size_str, parquet_metrics.throughput_mb_s, lance_metrics.throughput_mb_s
         );
 
         // Clean up
